@@ -5,6 +5,7 @@ import fs from "fs";
 import path, { format } from "path";
 import monitor from "express-status-monitor";
 import { Readable } from "stream";
+import { v4 as uuidv4 } from 'uuid'; 
 
 import { createClient } from "redis";
 
@@ -25,10 +26,15 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 app.post("/upload", upload.single("file"), (req, res) => {
+
+  const fileUniqueId = uuidv4();
+  let rowCount = 0;
+
   if (!req.file) res.status(400).json("No file upload");
 
   const fileName = req.file.originalname.split(".")[0];
   console.log(fileName, req.file);
+  console.log(fileUniqueId)
 
   Readable.from(req.file.buffer)
     .pipe(csv())
@@ -36,17 +42,31 @@ app.post("/upload", upload.single("file"), (req, res) => {
       const key = `${fileName}:row:${
         row.storeName.split(" ")[1] || Date.now()
       }`;
+      rowCount++;
       await client.hSet(key, row);
     })
     .on("end", () => {
-      console.log("✅ CSV parsed completely.");
+      console.log(" CSV parsed completely.");
+      console.log("Total Rows:", rowCount);
+
+      res.status(201).json({
+        message: "File uploaded Successfully",
+        file: req.file,
+        // filename: req.file.filename,
+        path: req.file.path,
+        rowCount: rowCount,
+        fileUniqueId : fileUniqueId,
+      });
     });
 
-  res.status(201).json({
-    message: "File uploaded Successfully",
-    filename: req.file.filename,
-    path: req.file.path,
-  });
+
+  // res.status(201).json({
+  //   message: "File uploaded Successfully",
+  //   file: req.file,
+  //   filename: req.file.filename,
+  //   path: req.file.path,
+  //   rowCount : rowCount
+  // });
 });
 
 client.on("error", (err) => console.log("Redis Client Error", err));

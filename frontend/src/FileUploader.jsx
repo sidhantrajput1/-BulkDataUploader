@@ -3,12 +3,11 @@ import { useState } from "react";
 
 const FileUploader = () => {
   const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadResponse, setUploadResponse] = useState(null);
 
-  
   const handleFileChange = (e) => {
-    
     setSelectedFile(e.target.files[0]);
-    console.log(selectedFile)
+    console.log(selectedFile);
   };
 
   // console.log(handleFileChange);
@@ -24,8 +23,8 @@ const FileUploader = () => {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      console.log(res)
-
+      setUploadResponse(res.data);
+      console.log(res);
       alert("Upload Sucess", res.data.message);
     } catch (error) {
       console.log(error);
@@ -68,11 +67,11 @@ const FileUploader = () => {
               Supports CSV and Excel files up to 50MB
             </p>
 
-              <div className="py-2 px-4 bg-gray-800 text-white rounded-md">
+            <div className="py-2 px-4 bg-gray-800 text-white rounded-md">
               Choose File
-              </div>
+            </div>
 
-              <span>{selectedFile?.data?.filename}</span>
+            <span>{selectedFile?.data?.filename}</span>
 
             <input
               type="file"
@@ -85,7 +84,7 @@ const FileUploader = () => {
 
           <button
             onClick={handleUpload}
-            className="mt-4 w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="mt-4 w-full cursor-pointer py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             Upload File
           </button>
@@ -116,11 +115,41 @@ const FileUploader = () => {
             </div>
           </div>
         </div>
-        <div className="border p-4 col-span-2 border-gray-300 rounded-md shadow-sm">
-          <h3 className="font-medium text-xl mb-1">Processing Jobs</h3>
-          <p className="text-gray-400 text-sm mb-6">
+
+        <div className="border p-6 col-span-2 border-gray-200 rounded-xl shadow-lg bg-white">
+          <h3 className="font-semibold text-2xl text-gray-800 mb-2">
+            Processing Jobs
+          </h3>
+          <p className="text-gray-500 text-sm mb-5">
             Track the progress of your uploaded files
           </p>
+
+          <div className="border border-gray-200 rounded-lg p-5 bg-gray-50 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="text-5xl text-indigo-600">
+                <ion-icon name="timer-outline"></ion-icon>
+              </div>
+
+              <div className="flex-1">
+                <p className="text-lg font-semibold text-gray-700">
+                  <span className="font-medium text-gray-500">File Name:</span>{" "}
+                  {uploadResponse?.file?.originalname || "N/A"}
+                </p>
+                <p className="text-sm text-gray-500">
+                  ID: {uploadResponse?.fileUniqueId || "Pending"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between text-gray-700">
+              <div>
+                <p className="text-sm text-gray-500">Total Rows</p>
+                <p className="text-lg font-bold">
+                  {uploadResponse?.rowCount ?? 0}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
