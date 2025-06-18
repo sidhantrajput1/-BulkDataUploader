@@ -1,4 +1,38 @@
+import axios from "axios";
+import { useState } from "react";
+
 const FileUploader = () => {
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  
+  const handleFileChange = (e) => {
+    
+    setSelectedFile(e.target.files[0]);
+    console.log(selectedFile)
+  };
+
+  // console.log(handleFileChange);
+
+  const handleUpload = async () => {
+    if (!selectedFile) return alert("Please select a file");
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const res = await axios.post("http://localhost:3000/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      console.log(res)
+
+      alert("Upload Sucess", res.data.message);
+    } catch (error) {
+      console.log(error);
+      alert("Uploaded failed");
+    }
+  };
+
   return (
     <div className="m-auto max-w-7xl">
       <div className="pt-14 grid grid-cols-2 gap-4">
@@ -34,17 +68,27 @@ const FileUploader = () => {
               Supports CSV and Excel files up to 50MB
             </p>
 
-            <div className="py-2 px-4 bg-gray-800 text-white rounded-md">
+              <div className="py-2 px-4 bg-gray-800 text-white rounded-md">
               Choose File
-            </div>
+              </div>
+
+              <span>{selectedFile?.data?.filename}</span>
 
             <input
               type="file"
               id="fileInput"
               accept=".csv,.xlsx,.xls"
               className="hidden"
+              onChange={handleFileChange}
             />
           </label>
+
+          <button
+            onClick={handleUpload}
+            className="mt-4 w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Upload File
+          </button>
         </div>
 
         <div className="border p-4  border-gray-300 rounded-md shadow-sm">
