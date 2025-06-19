@@ -21,11 +21,10 @@ src/
 ├── utils/
 │ └── db.js # MongoDB connection
 ├── models/ # 
-│ └── User.js
-├── routes/ # 
-│ └── userRoutes.js
-├── controllers/ # 
-│ └── userController.js
+│ └── UploadRecord.jsx
+└── .env
+
+
 
 
 
