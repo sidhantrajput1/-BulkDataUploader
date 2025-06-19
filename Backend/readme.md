@@ -1,113 +1,80 @@
-// fs.createReadStream("./excel.csv", "utf-8")
-    //   .pipe(csv())
-    //   .on("data", async (row) => {
-        // const key = `${filename}:row:${
-        //   row.storeName.split(" ")[1] || Date.now()
-        // }`;
-        // await client.hSet(key, row);
-        // console.log(typeof row, row);
-    //   })
-    //   .on("end", () => {
-    //     console.log("CSV file processed succesfully.");
-    //     res.end();
-    //   })
-    //   .on("error", (err) => {
-    //     console.error("Error reading CSV:", err);
-    //   });
+#  Bulk Data Uploader Backend
+
+This is a high-performance backend system for real-time bulk CSV file uploads using:
+
+-  Node.js + Express
+-  Multer (for in-memory file uploads)
+-  Bull Queue (for job processing)
+-  Redis (for fast key-value storage)
+-  Socket.IO (for real-time progress updates)
+-  Express Monitor (for server monitoring)
+-  CSV Parser (for streaming large CSVs)
+-  MongoDB (for user management, optional)
+-  Bull Board (for queue dashboard UI)
+
+---
+
+## 📁 Folder Structure
+
+src/
+├── server.js # Main server with Express, Bull, Redis, Socket.io
+├── utils/
+│ └── db.js # MongoDB connection
+├── models/ # 
+│ └── User.js
+├── routes/ # 
+│ └── userRoutes.js
+├── controllers/ # 
+│ └── userController.js
 
 
 
+---
+
+##  Features
+
+- Upload CSV files directly from frontend (memory upload via `multer`)
+- Streams & parses CSV rows without memory overflow
+- Sends real-time job status to frontend using `socket.io`
+- Uses Redis + Bull Queue for background processing
+- Built-in dashboard monitoring via Bull Board and `express-status-monitor`
+
+---
+
+##  Technologies Used
+
+| Tech            | Description                         |
+|-----------------|-------------------------------------|
+| Node.js         | JavaScript runtime                  |
+| Express.js      | Web framework                       |
+| Multer          | File upload middleware              |
+| Redis           | In-memory data store                |
+| Bull            | Queue system (Redis-based)          |
+| Socket.IO       | Real-time client-server communication |
+| dotenv          | For loading environment variables   |
+| uuid            | To uniquely identify file uploads   |
+| csv-parser      | Streaming CSV data                  |
+
+---
+
+##  Setup Instructions
+
+### 1. Clone the Repo
+
+```bash
+git clone https://github.com/sidhantrajput1/-BulkDataUploader.git
+cd -BulkDataUploader/backend
 
 
+* Install Dependencies
+-  npm install
 
+* .env
+PORT=3000
+MONGO_URI=mongodb+srv://<your_mongo_uri>
 
+* Run Redis (via Docker)
+- docker run -d -p 6379:6379 redis/redis-stack
 
-
-
-
-
-
-import express from "express";
-import cors from "cors";
-import multer from "multer";
-import fs from "fs";
-import path, { format } from "path";
-import monitor from "express-status-monitor";
-import { Readable } from "stream";
-import { v4 as uuidv4 } from 'uuid'; 
-import { createClient } from "redis";
-
-const client = createClient();
-import csv from "csv-parser";
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// middlewares
-app.use(monitor());
-app.use(express.json());
-app.use(cors());
-
-// multer.js
-
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
-
-app.post("/upload", upload.single("file"), (req, res) => {
-
-  const fileUniqueId = uuidv4();
-  let rowCount = 0;
-
-  if (!req.file) res.status(400).json("No file upload");
-
-  const fileName = req.file.originalname.split(".")[0];
-
-  console.log(fileName, req.file);
-  console.log(fileUniqueId)
-
-  Readable.from(req.file.buffer)
-    .pipe(csv())
-    .on("data", async (row) => {
-      const key = `${fileName}:row:${
-        row.storeName.split(" ")[1] || Date.now()
-      }`;
-      rowCount++;
-      await client.hSet(key, row);
-    })
-    .on("end", () => {
-      console.log(" CSV parsed completely.");
-      console.log("Total Rows:", rowCount);
-
-      res.status(201).json({
-        message: "File uploaded Successfully",
-        file: req.file,
-        // filename: req.file.filename,
-        path: req.file.path,
-        rowCount: rowCount,
-        fileUniqueId : fileUniqueId,
-      });
-    });
-
-
-  // res.status(201).json({
-  //   message: "File uploaded Successfully",
-  //   file: req.file,
-  //   filename: req.file.filename,
-  //   path: req.file.path,
-  //   rowCount : rowCount
-  // });
-});
-
-client.on("error", (err) => console.log("Redis Client Error", err));
-
-(async () => {
-  await client.connect();
-})();
-
-app.get("/", (req, res) => {
-  res.send("ping pong");
-});
-
-app.listen(PORT, (req, res) => {
-  console.log(`Server started on PORT: http://localhost:${PORT}`);
-});
+*****Start Server*****
+- npm start

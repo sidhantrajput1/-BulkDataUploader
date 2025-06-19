@@ -11,6 +11,7 @@ import csv from "csv-parser";
 import Queue from "bull";
 import connectDB from "./utils/db.js";
 import dotenv from "dotenv";
+import UploadRecord from "./models/UploadRecord.js";
 
 // Load environment variables
 dotenv.config();
@@ -34,7 +35,9 @@ app.use(cors());
 // Redis setup
 const redisClient = createClient();
 redisClient.on("error", (err) => console.error("Redis Error", err));
-await redisClient.connect();
+(async () => {
+  await redisClient.connect();
+})();
 
 // Multer setup
 const storage = multer.memoryStorage();
@@ -45,7 +48,7 @@ const fileQueue = new Queue("fileQueue", {
   redis: { host: "127.0.0.1", port: 6379 },
 });
 
-// 🔁 Emit processing stats to frontend
+//  Emit processing stats to frontend
 const sendQueueStats = async () => {
   const stats = {
     active: await fileQueue.getActiveCount(),
@@ -111,6 +114,14 @@ fileQueue.process(async (job, done) => {
         row.storeName.split(" ")[1] || Date.now()
       }`;
       await redisClient.hSet(key, row);
+
+      //  Save to MongoDB
+      await UploadRecord.create({
+        fileId,
+        fileName,
+        data: row,
+      });
+
       successCount++;
     } catch (error) {
       failCount++;
@@ -133,7 +144,7 @@ fileQueue.process(async (job, done) => {
     duration,
   });
 
-  await sendQueueStats(); 
+  await sendQueueStats();
   done();
 });
 
@@ -141,7 +152,6 @@ fileQueue.process(async (job, done) => {
 setInterval(() => {
   sendQueueStats();
 }, 10000);
-
 
 // Connect to MongoDB
 connectDB();
