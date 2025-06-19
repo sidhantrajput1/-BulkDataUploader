@@ -1,9 +1,11 @@
 import axios from "axios";
 import { useState } from "react";
+import UploadDetails from "./UploadDetails";
+import ProcessingOverview from "./ProcessingOverview";
 
 const FileUploader = () => {
   const [selectedFile, setSelectedFile] = useState(null);
-  const [uploadResponse, setUploadResponse] = useState(null);
+  const [uploadResponses, setUploadResponses] = useState([]);
 
   const handleFileChange = (e) => {
     setSelectedFile(e.target.files[0]);
@@ -23,9 +25,14 @@ const FileUploader = () => {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setUploadResponse(res.data);
+      setUploadResponses((prev) => [...prev, res.data]);
+
       console.log(res);
-      alert("Upload Sucess", res.data.message);
+      alert("Upload Success")
+
+      // alert("Upload Sucess", res.data.message);
+      setSelectedFile(null)
+
     } catch (error) {
       console.log(error);
       alert("Uploaded failed");
@@ -35,7 +42,7 @@ const FileUploader = () => {
   return (
     <div className="m-auto max-w-7xl">
       <div className="pt-14 grid grid-cols-2 gap-4">
-        <div className=" p-4 col-span-2">
+        <div className=" py-4 col-span-2">
           <h1 className="font-bold text-3xl mb-3">Bulk Data Uploader</h1>
           <p className="text-gray-500">
             Upload CSV or Excel files for batch processing with real-time
@@ -91,29 +98,7 @@ const FileUploader = () => {
         </div>
 
         <div className="border p-4  border-gray-300 rounded-md shadow-sm">
-          <h3 className="font-medium text-xl mb-1">Processing Overview</h3>
-          <p className="text-gray-400 text-sm mb-6">
-            Current processing statistics
-          </p>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gray-100 p-4 shadow-sm rounded-md flex flex-col justify-center items-center">
-              <span className="font-bold text-blue-600 text-md mb-1">0</span>{" "}
-              <p className="text-gray-500 ">Active Job</p>
-            </div>
-            <div className="bg-gray-100 p-4 shadow-sm rounded-md flex flex-col justify-center items-center">
-              <span className="font-bold text-green-600 text-md mb-1">0</span>{" "}
-              <p className="text-gray-500 ">Completed</p>
-            </div>
-            <div className="bg-gray-100 p-4 shadow-sm rounded-md flex flex-col justify-center items-center">
-              <span className="font-bold text-orange-600 text-md mb-1">0</span>{" "}
-              <p className="text-gray-500 ">Queued</p>
-            </div>
-            <div className="bg-gray-100 p-4 shadow-sm rounded-md flex flex-col justify-center items-center">
-              <span className="font-bold text-red-600 text-md mb-1">0</span>{" "}
-              <p className="text-gray-500 ">Failed</p>
-            </div>
-          </div>
+          <ProcessingOverview />
         </div>
 
         <div className="border p-6 col-span-2 border-gray-200 rounded-xl shadow-lg bg-white">
@@ -124,31 +109,12 @@ const FileUploader = () => {
             Track the progress of your uploaded files
           </p>
 
-          <div className="border border-gray-200 rounded-lg p-5 bg-gray-50 shadow-sm">
-            <div className="flex items-start gap-4">
-              <div className="text-5xl text-indigo-600">
-                <ion-icon name="timer-outline"></ion-icon>
-              </div>
-
-              <div className="flex-1">
-                <p className="text-lg font-semibold text-gray-700">
-                  <span className="font-medium text-gray-500">File Name:</span>{" "}
-                  {uploadResponse?.file?.originalname || "N/A"}
-                </p>
-                <p className="text-sm text-gray-500">
-                  ID: {uploadResponse?.fileUniqueId || "Pending"}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between text-gray-700">
-              <div>
-                <p className="text-sm text-gray-500">Total Rows</p>
-                <p className="text-lg font-bold">
-                  {uploadResponse?.rowCount ?? 0}
-                </p>
-              </div>
-            </div>
+          <div className="flex flex-col gap-y-6">
+            {
+              uploadResponses.map((response, index) => (
+                <UploadDetails key={index} uploadResponse={response} />
+              ))
+            }
           </div>
         </div>
       </div>

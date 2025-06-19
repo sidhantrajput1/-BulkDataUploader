@@ -6,7 +6,6 @@ import path, { format } from "path";
 import monitor from "express-status-monitor";
 import { Readable } from "stream";
 import { v4 as uuidv4 } from 'uuid'; 
-
 import { createClient } from "redis";
 
 const client = createClient();
@@ -33,6 +32,7 @@ app.post("/upload", upload.single("file"), (req, res) => {
   if (!req.file) res.status(400).json("No file upload");
 
   const fileName = req.file.originalname.split(".")[0];
+
   console.log(fileName, req.file);
   console.log(fileUniqueId)
 
@@ -60,13 +60,6 @@ app.post("/upload", upload.single("file"), (req, res) => {
     });
 
 
-  // res.status(201).json({
-  //   message: "File uploaded Successfully",
-  //   file: req.file,
-  //   filename: req.file.filename,
-  //   path: req.file.path,
-  //   rowCount : rowCount
-  // });
 });
 
 client.on("error", (err) => console.log("Redis Client Error", err));
