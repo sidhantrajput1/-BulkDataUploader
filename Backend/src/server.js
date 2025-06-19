@@ -1,77 +1,129 @@
 import express from "express";
 import cors from "cors";
 import multer from "multer";
-import fs from "fs";
-import path, { format } from "path";
 import monitor from "express-status-monitor";
 import { Readable } from "stream";
-import { v4 as uuidv4 } from 'uuid'; 
+import { v4 as uuidv4 } from "uuid";
 import { createClient } from "redis";
-
-const client = createClient();
+import { Server } from "socket.io";
+import { createServer } from "http";
 import csv from "csv-parser";
+import Queue from "bull";
 
+// Express and Socket.io server setup
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+  },
+});
+
 const PORT = process.env.PORT || 3000;
 
-// middlewares
+// Middleware setup
 app.use(monitor());
 app.use(express.json());
 app.use(cors());
 
-// multer.js
+// Redis setup
+const redisClient = createClient();
+redisClient.on("error", (err) => console.error("Redis Error", err));
+await redisClient.connect();
 
+// Multer setup
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 
+// Bull queue setup
+const fileQueue = new Queue("fileQueue", {
+  redis: { host: "127.0.0.1", port: 6379 },
+});
+
+// WebSocket connection
+io.on("connection", (socket) => {
+  console.log("Socket.io: Client connected");
+});
+
+// File upload endpoint
 app.post("/upload", upload.single("file"), (req, res) => {
+  if (!req.file) return res.status(400).json("No file uploaded");
 
   const fileUniqueId = uuidv4();
-  let rowCount = 0;
-
-  if (!req.file) res.status(400).json("No file upload");
-
   const fileName = req.file.originalname.split(".")[0];
+  const rows = [];
 
-  console.log(fileName, req.file);
-  console.log(fileUniqueId)
-
+  // Parse CSV from buffer
   Readable.from(req.file.buffer)
     .pipe(csv())
-    .on("data", async (row) => {
+    .on("data", (row) => {
+      rows.push(row);
+    })
+    .on("end", async () => {
+      // Push to processing queue
+      await fileQueue.add({ rows, fileId: fileUniqueId, fileName });
+      res.status(201).json({
+        message: "File uploaded & queued for processing",
+        fileUniqueId,
+        rowCount: rows.length,
+        file: {
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+        },
+      });
+    });
+});
+
+// Queue worker logic
+fileQueue.process(async (job, done) => {
+  const { rows, fileId, fileName } = job.data;
+  let successCount = 0;
+  let failCount = 0;
+
+  const startTime = Date.now();
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+
+    try {
+      if (!row.storeName) throw new Error("Missing storeName");
+
       const key = `${fileName}:row:${
         row.storeName.split(" ")[1] || Date.now()
       }`;
-      rowCount++;
-      await client.hSet(key, row);
-    })
-    .on("end", () => {
-      console.log(" CSV parsed completely.");
-      console.log("Total Rows:", rowCount);
+      await redisClient.hSet(key, row);
+      successCount++;
+    } catch (error) {
+      failCount++;
+    }
 
-      res.status(201).json({
-        message: "File uploaded Successfully",
-        file: req.file,
-        // filename: req.file.filename,
-        path: req.file.path,
-        rowCount: rowCount,
-        fileUniqueId : fileUniqueId,
-      });
-    });
+    const percent = Math.round(((i + 1) / rows.length) * 100);
+    if (percent % 10 === 0 || percent === 100) {
+      io.emit("progress", { fileId, percent });
+    }
+  }
 
+  const duration = `${((Date.now() - startTime) / 1000).toFixed(2)}s`;
 
+  io.emit("complete", {
+    fileId,
+    message: "Processing complete",
+    total: rows.length,
+    successCount,
+    failCount,
+    duration,
+  });
+
+  done();
 });
 
-client.on("error", (err) => console.log("Redis Client Error", err));
-
-(async () => {
-  await client.connect();
-})();
-
+// Ping route
 app.get("/", (req, res) => {
-  res.send("ping pong");
+  res.send("Ping Pong");
 });
 
-app.listen(PORT, (req, res) => {
-  console.log(`Server started on PORT: http://localhost:${PORT}`);
+// Start server
+httpServer.listen(PORT, () => {
+  console.log(`✅ Server started at: http://localhost:${PORT}`);
 });
