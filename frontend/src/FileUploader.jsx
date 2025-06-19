@@ -12,8 +12,7 @@ const FileUploader = () => {
   const [progressMap, setProgressMap] = useState({});
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setSelectedFile(file);
+    setSelectedFile(e.target.files[0]);
   };
 
   const handleUpload = async () => {
@@ -28,20 +27,16 @@ const FileUploader = () => {
       });
 
       const fileId = res.data.fileUniqueId;
-
-      // Set upload response and initialize progress
       setUploadResponses((prev) => [...prev, { ...res.data, progress: 0 }]);
       setProgressMap((prev) => ({ ...prev, [fileId]: 0 }));
-
-      alert("Upload Success");
       setSelectedFile(null);
-    } catch (error) {
-      console.error(error);
+      alert("File uploaded and queued successfully");
+    } catch (err) {
+      console.log(err)
       alert("Upload failed");
     }
   };
 
-  // Listen for socket updates
   useEffect(() => {
     socket.on("progress", ({ fileId, percent }) => {
       setProgressMap((prev) => ({
@@ -51,19 +46,13 @@ const FileUploader = () => {
     });
 
     socket.on("complete", ({ fileId, successCount, failCount, duration }) => {
-      setUploadResponses((prevResponses) =>
-        prevResponses.map((upload) =>
+      setUploadResponses((prev) =>
+        prev.map((upload) =>
           upload.fileUniqueId === fileId
-            ? {
-                ...upload,
-                successCount,
-                failedCount: failCount,
-                duration: duration || "Done",
-              }
+            ? { ...upload, successCount, failCount, duration }
             : upload
         )
       );
-
       alert(`File ${fileId} processing complete!`);
     });
 
@@ -136,7 +125,7 @@ const FileUploader = () => {
 
         {/* Processing Overview */}
         <div className="border p-4 border-gray-300 rounded-md shadow-sm">
-          <ProcessingOverview />
+          <ProcessingOverview  socket={socket}/>
         </div>
 
         {/* Processing Jobs */}
