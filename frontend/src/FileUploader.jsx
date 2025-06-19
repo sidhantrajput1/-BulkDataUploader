@@ -1,18 +1,20 @@
 import axios from "axios";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import UploadDetails from "./UploadDetails";
 import ProcessingOverview from "./ProcessingOverview";
+import io from "socket.io-client";
+
+const socket = io("http://localhost:3000");
 
 const FileUploader = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadResponses, setUploadResponses] = useState([]);
+  const [progressMap, setProgressMap] = useState({});
 
   const handleFileChange = (e) => {
-    setSelectedFile(e.target.files[0]);
-    console.log(selectedFile);
+    const file = e.target.files[0];
+    setSelectedFile(file);
   };
-
-  // console.log(handleFileChange);
 
   const handleUpload = async () => {
     if (!selectedFile) return alert("Please select a file");
@@ -25,24 +27,57 @@ const FileUploader = () => {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setUploadResponses((prev) => [...prev, res.data]);
+      const fileId = res.data.fileUniqueId;
 
-      console.log(res);
-      alert("Upload Success")
+      // Set upload response and initialize progress
+      setUploadResponses((prev) => [...prev, { ...res.data, progress: 0 }]);
+      setProgressMap((prev) => ({ ...prev, [fileId]: 0 }));
 
-      // alert("Upload Sucess", res.data.message);
-      setSelectedFile(null)
-
+      alert("Upload Success");
+      setSelectedFile(null);
     } catch (error) {
-      console.log(error);
-      alert("Uploaded failed");
+      console.error(error);
+      alert("Upload failed");
     }
   };
+
+  // Listen for socket updates
+  useEffect(() => {
+    socket.on("progress", ({ fileId, percent }) => {
+      setProgressMap((prev) => ({
+        ...prev,
+        [fileId]: percent,
+      }));
+    });
+
+    socket.on("complete", ({ fileId, successCount, failCount, duration }) => {
+      setUploadResponses((prevResponses) =>
+        prevResponses.map((upload) =>
+          upload.fileUniqueId === fileId
+            ? {
+                ...upload,
+                successCount,
+                failedCount: failCount,
+                duration: duration || "Done",
+              }
+            : upload
+        )
+      );
+
+      alert(`File ${fileId} processing complete!`);
+    });
+
+    return () => {
+      socket.off("progress");
+      socket.off("complete");
+    };
+  }, []);
 
   return (
     <div className="m-auto max-w-7xl">
       <div className="pt-14 grid grid-cols-2 gap-4">
-        <div className=" py-4 col-span-2">
+        {/* Heading */}
+        <div className="py-4 col-span-2">
           <h1 className="font-bold text-3xl mb-3">Bulk Data Uploader</h1>
           <p className="text-gray-500">
             Upload CSV or Excel files for batch processing with real-time
@@ -50,10 +85,11 @@ const FileUploader = () => {
           </p>
         </div>
 
+        {/* File Upload Section */}
         <div className="border p-4 border-gray-300 rounded-md shadow-sm">
           <h3 className="flex items-center gap-2 text-xl font-medium mb-1">
-            <ion-icon name="cloud-upload-outline"></ion-icon>{" "}
-            <span className=" ">File Upload</span>
+            <ion-icon name="cloud-upload-outline"></ion-icon>
+            <span>File Upload</span>
           </h3>
           <p className="text-gray-500 mb-6 text-sm">
             Drag and drop your CSV or Excel file, or click to browse
@@ -65,11 +101,10 @@ const FileUploader = () => {
           >
             <ion-icon
               name="document-outline"
-              class="text-4xl text-gray-500 mb-2"
+              className="text-4xl text-gray-500 mb-2"
             ></ion-icon>
 
             <h4 className="font-medium mb-1">Upload your data file</h4>
-
             <p className="text-gray-400 text-sm mb-4">
               Supports CSV and Excel files up to 50MB
             </p>
@@ -78,7 +113,9 @@ const FileUploader = () => {
               Choose File
             </div>
 
-            <span>{selectedFile?.data?.filename}</span>
+            <span className="mt-2 text-gray-700">
+              {selectedFile?.name || "No file selected"}
+            </span>
 
             <input
               type="file"
@@ -97,10 +134,12 @@ const FileUploader = () => {
           </button>
         </div>
 
-        <div className="border p-4  border-gray-300 rounded-md shadow-sm">
+        {/* Processing Overview */}
+        <div className="border p-4 border-gray-300 rounded-md shadow-sm">
           <ProcessingOverview />
         </div>
 
+        {/* Processing Jobs */}
         <div className="border p-6 col-span-2 border-gray-200 rounded-xl shadow-lg bg-white">
           <h3 className="font-semibold text-2xl text-gray-800 mb-2">
             Processing Jobs
@@ -110,11 +149,13 @@ const FileUploader = () => {
           </p>
 
           <div className="flex flex-col gap-y-6">
-            {
-              uploadResponses.map((response, index) => (
-                <UploadDetails key={index} uploadResponse={response} />
-              ))
-            }
+            {uploadResponses.map((response, index) => (
+              <UploadDetails
+                key={index}
+                uploadResponse={response}
+                progress={progressMap[response.fileUniqueId] || 0}
+              />
+            ))}
           </div>
         </div>
       </div>
