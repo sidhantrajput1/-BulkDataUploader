@@ -33,10 +33,16 @@ app.use(express.json());
 app.use(cors());
 
 // Redis setup
-const redisClient = createClient();
+const redisClient = createClient({ url: process.env.REDIS_URL });
 redisClient.on("error", (err) => console.error("Redis Error", err));
 (async () => {
-  await redisClient.connect();
+  try {
+    await redisClient.connect();
+    console.log("Redis connected");
+  } catch (err) {
+    console.error("Redis connection failed:", err);
+    process.exit(1); 
+  }
 })();
 
 // Multer setup
@@ -44,9 +50,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Bull queue setup
-const fileQueue = new Queue("fileQueue", {
-  redis: { host: "127.0.0.1", port: 6379 },
-});
+const fileQueue = new Queue("fileQueue",process.env.REDIS_URL);
 
 //  Emit processing stats to frontend
 const sendQueueStats = async () => {
