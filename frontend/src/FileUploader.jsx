@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import UploadDetails from "./UploadDetails";
 import ProcessingOverview from "./ProcessingOverview";
 import io from "socket.io-client";
+import Navbar from "./components/NavBar";
 
 const socket = io("http://localhost:3000");
 
@@ -32,7 +33,7 @@ const FileUploader = () => {
       setSelectedFile(null);
       alert("File uploaded and queued successfully");
     } catch (err) {
-      console.log(err)
+      console.log(err);
       alert("Upload failed");
     }
   };
@@ -125,7 +126,7 @@ const FileUploader = () => {
 
         {/* Processing Overview */}
         <div className="border p-4 border-gray-300 rounded-md shadow-sm">
-          <ProcessingOverview  socket={socket}/>
+          <ProcessingOverview socket={socket} />
         </div>
 
         {/* Processing Jobs */}
